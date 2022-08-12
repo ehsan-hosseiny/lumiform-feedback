@@ -1,0 +1,77 @@
+version: '3'
+
+networks:
+  lumiform:
+
+services:
+  nginx:
+    image: nginx:stable-alpine
+    container_name: lumiform-nginx
+    ports:
+      - "8000:80"
+    volumes:
+      - ./src:/var/www/html
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - php
+      - mysql
+    networks:
+      - lumiform
+  mysql:
+    image: mysql:8.0
+    container_name: lumiform-mysql
+    restart: unless-stopped
+    tty: true
+    volumes:
+      - ./mysql:/var/liv/mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: laravel
+      MYSQL_USER: homestead
+      MYSQL_PASSWORD: secret
+      MYSQL_ROOT_PASSWORD: secret
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    networks:
+      - lumiform
+
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lumiform-php
+    environment:
+      XDEBUG_IDEKEY: PHPSTORM
+
+    volumes:
+      - ./src:/var/www/html
+    ports:
+      - "9000:9000"
+    networks:
+      - lumiform
+
+  composer:
+    image: composer:latest
+    container_name: forum-composer
+    volumes:
+      - ./src:/var/www/html
+    working_dir: /var/www/html
+    depends_on:
+      - php
+    networks:
+      - lumiform
+
+  artisan:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lumiform-artisan
+    volumes:
+      - ./src:/var/www/html
+    depends_on:
+      - mysql
+    working_dir: /var/www/html
+    entrypoint: [ 'php','/var/www/html/artisan' ]
+    networks:
+      lumiform:
